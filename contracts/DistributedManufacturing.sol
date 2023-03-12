@@ -83,9 +83,28 @@ contract DistributedManufacturing {
         productDetailsMap[_productId].addresses[machineIndex] = msg.sender;
     }
 
-    function sendNextMachine() external payable returns (uint256)  {
-        address payable ss = payable(msg.sender);
-        ss.transfer(100);
+    function sendNextMachine(uint256 _productId) external payable returns (uint256)  {
+        
+        ProductDetails storage product = productDetailsMap[_productId];
+        require(product.stage != Stage.finished, "Product already finished");
+        
+        uint256 currentStageIndex = uint256(product.stage);
+
+        address payable senderAddress = payable(msg.sender);
+        address currentMachineAdress = product.addresses[currentStageIndex];
+        
+        require(senderAddress == currentMachineAdress, "Sender is not current machine owner" );
+
+        if(senderAddress != product.owner) {
+            uint256 transferAmount = rateChart[currentStageIndex - 1];
+            require (transferAmount <= address(this).balance, "Insufficient contract balance");
+            senderAddress.transfer(transferAmount);
+        }
+
+        
+        
+        product.stage = Stage(currentStageIndex + 1);
+
         return address(this).balance;
     }
 }
